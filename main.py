@@ -3,12 +3,17 @@ import pandas as pd
 import plotly.express as px
 
 # 1. 데이터 생성 (가상의 데이터)
+# @st.cache_data를 사용하여 데이터 로드 시간을 최적화합니다.
+# 이 데코레이터는 Streamlit 1.18.0 버전부터 도입되었으며, 이전 버전에서는 @st.cache로 사용되었습니다.
+# Python 3.10 환경에서는 최신 Streamlit 사용을 권장합니다.
 @st.cache_data
 def generate_data():
     mbti_types = [
         "ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP",
         "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ"
     ]
+    # 각 MBTI 유형에 대한 가상의 국어 성취도 점수 (0-100)
+    # 실제 데이터가 아니므로 참고용입니다.
     data = {
         'MBTI': mbti_types,
         '국어_성취도': [
@@ -19,6 +24,7 @@ def generate_data():
     df = pd.DataFrame(data)
     return df
 
+# 데이터 로드
 df = generate_data()
 
 # 2. Streamlit 앱 구성
@@ -27,41 +33,48 @@ st.write("가상의 데이터를 활용하여 MBTI 유형별 국어 과목 성�
 
 # 3. MBTI 유형 선택 (스크롤)
 st.sidebar.header("MBTI 유형 선택 🕵️‍♀️")
+# '전체 보기' 옵션을 가장 위에 추가합니다.
 selected_mbti = st.sidebar.selectbox(
     "궁금한 MBTI 유형을 선택하세요:",
-    options=['전체 보기'] + df['MBTI'].tolist() # '전체 보기' 옵션 추가
+    options=['전체 보기'] + sorted(df['MBTI'].tolist()) # MBTI 유형을 정렬하여 보여줍니다.
 )
 
 # 4. 선택된 MBTI에 따른 결과 표시
-st.subheader(f"✨ {selected_mbti} 유형의 국어 성취도 결과")
+st.subheader(f"✨ **{selected_mbti}** 유형의 국어 성취도 결과")
 
 if selected_mbti == '전체 보기':
-    st.dataframe(df.set_index('MBTI')) # MBTI를 인덱스로 설정하여 깔끔하게 표시
+    # 모든 데이터를 표로 표시
+    st.dataframe(df.set_index('MBTI'))
     st.markdown("---")
     st.write("📈 **모든 MBTI 유형의 국어 성취도 현황입니다.**")
-    # 전체 데이터에 대한 시각화 (막대 그래프)
-    fig = px.bar(df, x='MBTI', y='국어_성취도',
-                 title='📊 모든 MBTI 유형별 국어 과목 성취도',
-                 labels={'MBTI': 'MBTI 유형', '국어_성취도': '국어 성취도 점수'},
-                 color='국어_성취도',
-                 color_continuous_scale=px.colors.sequential.Plasma)
-    st.plotly_chart(fig)
+
+    # 모든 MBTI 유형에 대한 막대 그래프
+    fig_bar = px.bar(df, x='MBTI', y='국어_성취도',
+                     title='📊 모든 MBTI 유형별 국어 과목 성취도',
+                     labels={'MBTI': 'MBTI 유형', '국어_성취도': '국어 성취도 점수'},
+                     color='국어_성취도', # 성취도 점수에 따라 색상 변화
+                     color_continuous_scale=px.colors.sequential.Plasma) # 색상 스케일
+    st.plotly_chart(fig_bar)
 
 else:
-    # 선택된 MBTI 유형의 데이터만 필터링
+    # 선택된 MBTI 유형의 데이터만 필터링하여 표로 표시
     filtered_df = df[df['MBTI'] == selected_mbti]
-    st.dataframe(filtered_df.set_index('MBTI')) # 선택된 데이터만 표로 보여줌
+    st.dataframe(filtered_df.set_index('MBTI'))
     st.markdown("---")
-    st.write(f"🌟 **{selected_mbti} 유형의 국어 성취도 점수는 {filtered_df['국어_성취도'].iloc[0]}점 입니다.**")
-    # 선택된 MBTI에 대한 파이 차트 (해당 유형 하나만 강조)
-    fig = px.pie(df, names='MBTI', values='국어_성취도',
-                 title=f'pie chart of 국어 성취도 for all MBTI types',
-                 hole=0.3)
-    # 선택된 MBTI 조각에 특별한 색상 적용 (선택적)
-    # fig.update_traces(marker=dict(colors=[
-    #     'blue' if m == selected_mbti else 'lightgrey' for m in df['MBTI']
-    # ]))
-    st.plotly_chart(fig)
+    # 선택된 유형의 성취도 점수를 명확히 표시
+    st.write(f"🌟 **{selected_mbti}** 유형의 국어 성취도 점수는 **{filtered_df['국어_성취도'].iloc[0]}점** 입니다.")
+
+    # 전체 MBTI 유형에 대한 파이 차트 (선택된 유형을 강조)
+    fig_pie = px.pie(df, names='MBTI', values='국어_성취도',
+                     title=f'pie chart of 전체 MBTI 유형별 국어 성취도 (선택: {selected_mbti})',
+                     hole=0.3) # 도넛 형태로 표시
+    # 선택된 MBTI 조각의 색상을 다르게 하여 강조합니다.
+    # update_traces를 사용하여 파이 차트의 색상을 동적으로 변경
+    colors = [
+        'gold' if mbti == selected_mbti else 'lightgrey' for mbti in df['MBTI']
+    ]
+    fig_pie.update_traces(marker=dict(colors=colors))
+    st.plotly_chart(fig_pie)
 
 st.markdown(
     """
